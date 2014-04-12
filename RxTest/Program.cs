@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
@@ -74,6 +75,28 @@ namespace RxTest
                 }
             }
 
+            sName = "Seventh example - creating IOservable from stream";
+            using (var consoleColour = new ConsoleColour(ConsoleColor.DarkRed))
+            {
+                Console.WriteLine("\n\n\n{0}:", sName);
+                using (var timeIt = new TimeIt(sName))
+                {
+                    SeventhExample();
+                }
+            }
+
+            sName = "Eighth example - creating IOservable from array";
+            using (var consoleColour = new ConsoleColour(ConsoleColor.Yellow))
+            {
+                Console.WriteLine("\n\n\n{0}:", sName);
+                using (var timeIt = new TimeIt(sName))
+                {
+                    EighthExample();
+                }
+            }
+
+
+
             Console.ReadKey();
         }
 
@@ -133,27 +156,64 @@ namespace RxTest
             }
         }
 
+        static void SeventhExample()
+        {
+            //Create a text file
+            var sPath = @"C:\Temp\test.txt";
+            File.WriteAllText(sPath, @"Life is reactively beautiful.");
+
+            var ObservableChars = Observable.Using<char, StreamReader>(
+                                        () => new StreamReader(new FileStream(sPath, FileMode.Open)),
+                                        streamReader =>
+                                        (
+                                            streamReader.ReadToEnd().Select(chr =>
+                                            {
+                                                Thread.Sleep(100);
+                                                return chr;
+                                            })
+                                            //from str in streamReader.ReadToEnd()
+                                            //    select str
+                                        )
+                                        .ToObservable()
+                                    );
+            ObservableChars.Subscribe(chr => Console.WriteLine("\t{0}", chr));
+        }
+
+        static void EighthExample()
+        {
+            var numbers = new[] { 1, 2, 3, 4 };
+            var observable = numbers.ToObservable();
+
+            var lst = Enumerable.Range(1, 20).ToObservable().Select(foo =>
+            {
+                Thread.Sleep(50);
+                return foo;
+            });
+
+            lst.Subscribe(foo => Console.WriteLine("\t{0}", foo));
+        }
+
         private static IObservable<string> CreateNonBlockingSequence()
         {
             return Observable.Create<string>((IObserver<string> observer) =>
             {
                 observer.OnNext("a");
-                Thread.Sleep(1000);
+                Thread.Sleep(200);
 
                 observer.OnNext("b");
-                Thread.Sleep(1000);
+                Thread.Sleep(200);
 
                 observer.OnNext("c");
-                Thread.Sleep(1000);
+                Thread.Sleep(200);
 
                 observer.OnNext("d");
-                Thread.Sleep(1000);
+                Thread.Sleep(200);
 
                 observer.OnNext("e");
-                Thread.Sleep(1000);
+                Thread.Sleep(200);
 
                 observer.OnCompleted();
-                Thread.Sleep(1000);
+                Thread.Sleep(200);
 
                 return Disposable.Create(() => Console.WriteLine("Observer has unsubscribed"));
                 //or can return an Action like
