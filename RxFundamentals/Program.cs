@@ -30,7 +30,9 @@ namespace RxFundamentals
 
             //FourthLesson();
 
-            FifthLesson();
+            //FifthLesson();
+
+            SixthLesson();
 
             Console.ReadKey();
         }
@@ -129,6 +131,8 @@ namespace RxFundamentals
             using (var stream = new FileStream(sFilePath, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize, true))
             {
                 var sub = stream.AsyncReadLines(bufferSize)
+                                .SubscribeOn(Scheduler.ThreadPool)
+                                .ObserveOn(Scheduler.ThreadPool)
                                 .Subscribe(line =>
                                 {
                                     Console.WriteLine(line);
@@ -144,6 +148,28 @@ namespace RxFundamentals
             //constructor of FileStream that enables asynchronous operations
             //var stream = new FileStream(@"d:\temp\input.txt", FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize, true);
             //stream.AsyncReadLines(bufferSize).Subscribe(Console.WriteLine);
+        }
+
+        /// <summary>
+        /// Using finally to do something at the end of the observable sequence
+        /// </summary>
+        static void SixthLesson()
+        {
+            var seq = Enumerable.Range(1, 10).Select(no =>
+            {
+                Thread.Sleep(250);
+                return no;
+            });
+
+            var seqDone = new ManualResetEvent(false);
+
+            var observable = seq.ToObservable(Scheduler.ThreadPool).Finally(() => seqDone.Set());
+
+            observable.Subscribe(no => Console.WriteLine(no), ex => Console.WriteLine("Error: {0}", ex.Message), () => Console.WriteLine("Mission completed"));
+
+            seqDone.WaitOne();
+
+            Console.WriteLine("Done");
         }
     }
 }

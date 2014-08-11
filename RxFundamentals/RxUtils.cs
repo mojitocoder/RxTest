@@ -44,6 +44,7 @@ namespace RxFundamentals
                     {
                         var atEndofLine = false;
                         var c = data[i];
+
                         if (c == '\r')
                         {
                             atEndofLine = true;
@@ -55,6 +56,7 @@ namespace RxFundamentals
                         {
                             atEndofLine = true;
                         }
+
                         if (atEndofLine)
                         {
                             produceCurrentLine();
