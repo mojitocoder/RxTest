@@ -13,6 +13,7 @@ using System.Reactive.PlatformServices;
 using System.IO;
 
 using System.Reactive.PlatformServices;
+using System.Text.RegularExpressions;
 
 namespace RxFundamentals
 {
@@ -32,7 +33,15 @@ namespace RxFundamentals
 
             //FifthLesson();
 
-            SixthLesson();
+            //SixthLesson();
+
+            //SeventhLesson();
+
+            //EighthLesson();
+
+            //NinthLesson();
+
+            TenthLesson();
 
             Console.ReadKey();
         }
@@ -170,6 +179,140 @@ namespace RxFundamentals
             seqDone.WaitOne();
 
             Console.WriteLine("Done");
+        }
+
+        /// <summary>
+        /// Using .Scan method
+        /// </summary>
+        static void SeventhLesson()
+        {
+            var random = new Random();
+
+            //Generate a sequence of random numbers
+            var seq = Enumerable.Range(1, 100).Select(foo => random.NextDouble()).ToObservable();
+
+            //Do some processing on the sequence
+            // The key lesson here is the same accumulator object will be used for the whole subscription of .Scan
+            var runningAvg = seq.Scan(new double[] { 0, 0, 0 }, (accumulator, value) =>
+            {
+                accumulator[2] = accumulator[1];
+                accumulator[1] = accumulator[0];
+                accumulator[0] = value;
+                return accumulator;
+            }).Select(accumulator => accumulator.Sum() / 3);
+
+            seq.Subscribe(no => Console.WriteLine("Original number: {0}", no));
+            runningAvg.Subscribe(no => Console.WriteLine("Running avg: {0}", no));
+
+            Console.ReadLine();
+        }
+
+        /// <summary>
+        /// Using .Buffer to process a bunch of subjects at a time
+        ///     I.e. Partition the sequence by size or time
+        /// </summary>
+        static void EighthLesson()
+        {
+            var seq = Enumerable.Range(1, 103);
+
+            //Buffer with size
+            var observable = seq.ToObservable().Buffer(3).Subscribe(lst =>
+            {
+                Console.WriteLine("List of {0}:", lst.Count);
+                foreach (var item in lst)
+                {
+                    Console.WriteLine("\t{0}", item);
+                }
+            });
+
+            //Buffer with time
+            Console.WriteLine("Buffering with time:");
+            var random = new Random();
+            var infiSeq = GenerateInfiniteList().Select(no =>
+            {
+                Thread.Sleep(random.Next(1, 30) * 100);
+                return no;
+            })
+            .ToObservable()
+            .SubscribeOn(Scheduler.TaskPool);
+
+            var sub = infiSeq.Subscribe(no =>
+            {
+                Console.WriteLine("\t{0}", no);
+            });
+
+            var infiTimeSeq = infiSeq.Buffer(TimeSpan.FromSeconds(5)).SubscribeOn(Scheduler.TaskPool);
+            var timeSub = infiTimeSeq.Subscribe(lst =>
+            {
+                Console.WriteLine("\tBuffered: {0}", lst.Count);
+            });
+
+            Console.ReadKey();
+            sub.Dispose();
+            timeSub.Dispose();
+            Console.WriteLine("Subscription stopped.");
+        }
+
+        /// <summary>
+        /// Using .Window to process a bunch of subjects at a time
+        ///     .Window will produce a sequence of sequences
+        /// </summary>
+        static void NinthLesson()
+        {
+            var random = new Random();
+            var infiSeq = GenerateInfiniteList()
+                .Select(no => { //Slow down the sequence to see the effect
+                    Thread.Sleep(random.Next(1, 30) * 100);
+                    return no;
+                })
+                .ToObservable();
+
+            var windowedSeq = infiSeq.Window(TimeSpan.FromSeconds(5), 5).Subscribe(window =>
+            {
+                Console.WriteLine("Window");
+                window.Subscribe(no => Console.WriteLine("\t{0}", no));
+            });
+
+        }
+
+        /// <summary>
+        /// Using Regex with Rx
+        /// </summary>
+        static void TenthLesson()
+        {
+            var sInput = @"Premier League chief Richard Scudamore is still in favour of adding a controversial 39th game to the season - and says he thinks the clubs are too.
+The idea of playing an extra round of fixtures abroad was first floated in 2008, but drew fierce criticism from football fans and the media.
+But Scudamore told the BBC: 'The clubs wanted it then and they all would still probably want it now.
+'It will happen at some point - whether it is on my watch, who knows?'
+But Scudamore, speaking at the official launch of the 2014-15 Premier League season - his first public engagement since he was widely criticised for making sexist comments in emails to colleagues - conceded there was no reason to think an additional round of league fixtures would do any more to attract fans than some of the pre-season games that already take place.";
+
+            var regex = new Regex(@"he[\s]");
+
+            var seq = RegexMatchToEnum(regex, sInput).ToObservable();
+
+            seq.Subscribe(match => Console.WriteLine(match.Value));
+
+            //seq.Catch()
+            //seq.Catch()
+        }
+
+        static IEnumerable<Match> RegexMatchToEnum(Regex regex, string input)
+        {
+            var match = regex.Match(input);
+            while (match.Success)
+            {
+                yield return match;
+                match = match.NextMatch();
+            }
+        }
+
+        static IEnumerable<int> GenerateInfiniteList()
+        {
+            var random = new Random();
+            while (true)
+            {
+                yield return random.Next();
+            }
         }
     }
 }
